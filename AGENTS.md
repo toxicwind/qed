@@ -1,23 +1,23 @@
-# AGENTS.md — QED Code Editor (`/home/toxic/projects/qed`)
+# AGENTS.md - QED text-analysis toolkit
 
-**Role**: The definitive AI-native code editor (Sovereign high-performance editor based on Zed / Rust GPUI).
-**Stack**: Rust (nightly/stable), GPUI, WebAssembly, async-std/tokio.
+**Role**: JavaScript text-analysis toolkit - four "lens" modules (tectonic, osint, stylometric, cryptographic) plus a LensOrchestrator that auto-discovers and runs them. CI-exercised, no build step.
+**Stack**: Node.js (plain CommonJS, zero dependencies), GitHub Actions.
 
 ---
 
-## 🎯 Repository Specifics
+## Repository Specifics
 
-- **Core Engine**: High-performance GPU-accelerated editor written in Rust.
-- **Error Handling**: Propagate errors with `?` or explicit matching. Never silence with `let _ =`.
-- **Modularity**: Never create `mod.rs` files; use `src/<component>.rs`.
-- **Testing**: Run targeted cargo tests (`cargo test -p <crate> <test_name>`).
-- **Emergence**: Integrated with Sovereign mesh (`mcpproxy` on `:25109`, router on `:25100`).
+- **Lenses**: single-file modules in `src/_11ty/lenses/lens_*.js`, each exporting `{ name, description, analyze(data, meta) }`. New lenses are picked up automatically by `LensOrchestrator.discover()` - no registration needed.
+- **Orchestrator**: `lib/lens-orchestrator.js` - `new LensOrchestrator({ lensDir })`, `await orch.discover()`, `orch.analyze(name, content, meta)` / `orch.analyzeAll(content, meta)`.
+- **No build step**: no `package.json`, no bundler, no binary. Run with plain `node`. CI runs `node -e` one-liners with assertions.
+- **Workflows**: `agentic-lens-ci.yml` (push/PR lens assertions + MCP smoke no-op) and `tectonic-drift.yml` (daily 06:00 UTC repo-health check, fails below threshold).
+- **Config**: `.env.example` documents env keys; never commit real secrets.
 
 ## 🔧 Hard Rules (universal)
 
 1. **Verify live, then claim.** No "done" without `curl` / `lsof` / `nvidia-smi` / `npx tsgo --noEmit`.
 2. **Fail loud.** Never `2>/dev/null`, never `|| true`. Errors are diagnostic.
-3. **No commit without explicit user request.** Fork stays private under `toxicwind`.
+3. **Commit and push after each unit of work.** This repo is public under `toxicwind` - no local-only work.
 4. **Multi-strategy.** Non-trivial work → 3+ approaches, benchmark, keep runner-up.
 5. **TDD/BDD.** Failing assertion first, then fix. `npx tsgo --noEmit` for type-check.
 6. **Use emergence tools first.** GHAS (`:25113`) → ast-grep (`ast-grep` binary) → Tombi for TOML.

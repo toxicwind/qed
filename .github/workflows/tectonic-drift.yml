@@ -18,7 +18,7 @@ jobs:
           const { LensOrchestrator } = require('./lib/lens-orchestrator');
           const orch = new LensOrchestrator({ lensDir: './src/_11ty/lenses' });
           orch.discover().then(() => {
-            return orch.analyze('tectonic', {}, { lastPush: new Date().toISOString(), repo: 'effusion-labs', ciMode: true });
+            return orch.analyze('tectonic', {}, { lastPush: new Date().toISOString(), repo: 'qed', ciMode: true });
           }).then(r => {
             console.log('Health Score:', r.healthScore);
             console.log('Drift Count:', r.driftCount);

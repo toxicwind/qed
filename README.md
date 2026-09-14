@@ -1,53 +1,64 @@
 # QED
 
-> The definitive AI-native code editor. Proof complete.
+QED is a small JavaScript text-analysis toolkit: four "lens" modules that each
+extract a different signal from text, plus a `LensOrchestrator` that
+auto-discovers and runs them, with GitHub Actions CI exercising the lenses.
 
-[![CI](https://github.com/toxicwind/qed/actions/workflows/ci.yml/badge.svg)](https://github.com/toxicwind/qed/actions)
-[![Lint](https://github.com/toxicwind/qed/actions/workflows/lint.yml/badge.svg)](https://github.com/toxicwind/qed/actions)
-[![Test](https://github.com/toxicwind/qed/actions/workflows/test.yml/badge.svg)](https://github.com/toxicwind/qed/actions)
-[![Security](https://github.com/toxicwind/qed/actions/workflows/security.yml/badge.svg)](https://github.com/toxicwind/qed/actions)
-[![License: SOL](https://img.shields.io/badge/License-SOL%20v1.0-blue.svg)](./LICENSE)
-[![Upstream Sync](https://github.com/toxicwind/qed/actions/workflows/upstream-sync.yml/badge.svg)](https://github.com/toxicwind/qed/actions)
+Plain Node.js (CommonJS), zero dependencies, no build step, no binary.
 
-## Why QED?
+## Lenses (`src/_11ty/lenses/`)
 
-Zed is the last letter. QED is the end of the proof.
+Each lens is a single module exporting `{ name, description, analyze(data, meta) }`
+and returning a plain JSON object with a `confidence` score.
 
-We started with the same foundation — a fast, Rust-based editor — and made it definitive. Where the original offered AI as an option, QED enforces autonomous editing at the boundary. Where it reasoned separately, QED interleaves thought and action.
+| Lens | What it does |
+|---|---|
+| `tectonic` | Repository health/drift scoring: `healthScore = 100 − 2 × days-since-push`, stale-repo flag after 30 idle days, pass threshold 50 in CI mode / 70 otherwise |
+| `osint` | Regex extraction of URLs, email addresses, and IPv4 addresses; deduped lists plus an IOC count |
+| `stylometric` | Trigram fingerprinting (top 5), Shannon entropy, word count, unique-word ratio, average word length |
+| `cryptographic` | Pattern detection for potential base64 keys (40+ chars), hex hashes (32–64 chars), and GitHub tokens (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`); reports `CRITICAL` when tokens are found |
 
-## What Makes QED Definitive
+## Orchestrator (`lib/lens-orchestrator.js`)
 
-| Feature | Original | QED |
-|---------|----------|-----|
-| AI editing | Optional | **Enforced at boundary** |
-| Reasoning | Separate pass | **Interleaved** |
-| GPU acceleration | CPU fallback | **NVIDIA native** |
-| Model support | OpenAI only | **Universal (MCP proxy)** |
-| Autonomy | Assisted | **Full** |
+`LensOrchestrator` auto-discovers every `lens_*.js` module in `src/_11ty/lenses/`
+(the directory is configurable via the `lensDir` constructor option). Drop a new
+`lens_*.js` file in and it's picked up — no registration step.
 
-## Quick Start
+```js
+const { LensOrchestrator } = require('./lib/lens-orchestrator');
 
-```bash
-git clone https://github.com/toxicwind/qed.git
-cd qed
-cargo build --release
-./target/release/qed
+const orch = new LensOrchestrator();
+await orch.discover();                        // finds lens_*.js modules
+
+const one = await orch.analyze('osint', text);       // run a single lens
+const all = await orch.analyzeAll(text, { path });   // run every lens
 ```
 
-## Lineage
+## CI
 
-QED is a sovereign evolution of the editor space. We maintain sync capability with the original [zed-industries/zed](https://github.com/zed-industries/zed) project — our common ancestor.
+- [`.github/workflows/agentic-lens-ci.yml`](.github/workflows/agentic-lens-ci.yml)
+  — "Agentic Lens-First CI": runs on push to `main`, pull requests, and manual
+  dispatch. Discovers the lenses, then asserts: stylometric confidence ≥ 0.8,
+  cryptographic lens reports `clean`, OSINT lens finds at least one URL. The
+  final MCP smoke step is a no-op — there is no `services/mcp-stack` in the tree.
+- [`.github/workflows/tectonic-drift.yml`](.github/workflows/tectonic-drift.yml)
+  — daily 06:00 UTC cron (plus manual dispatch): runs the tectonic lens and fails
+  if the repo health score drops below threshold.
 
-- **Daily automated sync** via GitHub Actions
-- **437 commits ahead** with autonomous enhancements
-- **All upstream contributions** preserved and attributed
-- **Upstream code** remains under its original license
-- **QED enhancements** are licensed under SOL v1.0
+## Configuration
+
+Copy `.env.example` to `.env` and fill in values. Never commit real secrets.
+
+| Key | Purpose |
+|---|---|
+| `GITHUB_TOKEN` | GitHub API token for drift checks (CI uses the built-in `${{ secrets.GITHUB_TOKEN }}`) |
+| `LENS_ENABLED` | Enable/disable lens runs |
+| `LENS_SWARM_CONCURRENCY`, `SWARM_MAX_CONCURRENCY` | Parallelism knobs |
+| `LENS_AUTO_COMMIT` | Whether automation may commit |
+| `SWARM_TIMEOUT_MS` | Per-run timeout (default 30000) |
+| `OPHEL_VAULT_PATH`, `MODELBEATS_API_ENDPOINT`, `ZEDRA_DAEMON_HOST`, `MUSEPOOL_CDN_PRIMARY`, `MCP_TRANSPORT` | Integration endpoints (unset by default) |
 
 ## License
 
-Sovereign Open License (SOL) v1.0 — see [LICENSE](./LICENSE)
-
-## Stars
-
-If QED changes how you code, please ⭐ star it. The proof is complete.
+No license file is present in this repository yet — all rights reserved until one
+is added.
